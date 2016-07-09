@@ -32,11 +32,13 @@ def sample_distribution(distribution):
       return i
   return len(distribution) - 1
 
-def sample(prediction):
+def sample(prediction, temperature = 0.6):
   """Turn a (column) prediction into 1-hot encoded samples."""
   p = np.zeros(shape=[1, num_features], dtype=np.float)
-  #p[0, sample_distribution(prediction[0])] = 1.0
-  p[0, np.argmax(prediction[0])] = 1.0
+  t_prediction = np.log(prediction[0]) / temperature
+  t_prediction = np.exp(t_prediction) / np.sum(np.exp(t_prediction))
+  p[0, sample_distribution(t_prediction)] = 1.0
+  #p[0, np.argmax(t_prediction)] = 1.0
   return p
 
 def characters(probabilities, generator):
@@ -84,7 +86,7 @@ with graph.as_default():
                 scope.reuse_variables()
             lstm_output, state = lstm(tf_inputs[i], state)
 
-            output_z = tf.matmul(lstm_output, output_weights) + output_biases
+            output_z = tf.matmul(tf.nn.relu(lstm_output), output_weights) + output_biases
             loss += tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output_z, tf_inputs[i + 1]))
             train_prediction[i] = tf.nn.softmax(output_z)
 
@@ -117,7 +119,7 @@ with graph.as_default():
         if sample_reset_flag == 0:
             sample_scope.reuse_variables()
         sample_lstm_output, sample_state = lstm(sample_input, saved_sample_state)
-        sample_output_z = tf.matmul(sample_lstm_output, output_weights) + output_biases
+        sample_output_z = tf.matmul(tf.nn.relu(sample_lstm_output), output_weights) + output_biases
         sample_prediction = tf.nn.softmax(sample_output_z)
 
     saver = tf.train.Saver()

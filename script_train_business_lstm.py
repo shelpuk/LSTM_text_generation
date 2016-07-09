@@ -6,10 +6,10 @@ import cPickle
 import random
 
 num_unrollings = 7
-num_features = 35
+num_features = 188
 
-num_lstm_units = 256
-batch_size = 100
+num_lstm_units = 512
+batch_size = 10
 
 graph = tf.Graph()
 
@@ -99,21 +99,20 @@ with graph.as_default():
 
     loss = loss / num_unrollings
 
+    #learning_rate = tf.train.exponential_decay(.001, global_step, 100000, 0.1, staircase=True)
+    #optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(loss)
+
     global_step = tf.Variable(0)
-    learning_rate = tf.train.exponential_decay(10.0, global_step, 10000, 0.1, staircase=True)
-
-    learning_rate = tf.train.exponential_decay(.01, global_step, 5000, 0.5, staircase=True)
-    optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(loss)
-
-    #optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
-    #gradients, v = zip(*optimizer.compute_gradients(loss))
-    #gradients, _ = tf.clip_by_global_norm(gradients, 1.25)
-    #optimizer = optimizer.apply_gradients(zip(gradients, v), global_step=global_step)
+    learning_rate = tf.train.exponential_decay(10.0, global_step, 100000, 0.1, staircase=True)
+    optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
+    gradients, v = zip(*optimizer.compute_gradients(loss))
+    gradients, _ = tf.clip_by_global_norm(gradients, 1.25)
+    optimizer = optimizer.apply_gradients(zip(gradients, v), global_step=global_step)
 
     sample_input = tf.placeholder(tf.float32, shape=[1, num_features])
     sample_reset_flag = tf.placeholder(tf.float32)
-    saved_sample_output = tf.Variable(tf.zeros([1, num_lstm_units]))
-    saved_sample_state = tf.Variable(tf.zeros([1, lstm.state_size]))
+    saved_sample_output = tf.Variable(tf.zeros([1, num_lstm_units]), trainable=False)
+    saved_sample_state = tf.Variable(tf.zeros([1, lstm.state_size]), trainable=False)
 
     with tf.variable_scope('myrnn_scope') as sample_scope:
         if sample_reset_flag == 0:
@@ -126,7 +125,7 @@ with graph.as_default():
 
 #---------------Data loader and params----------------------------------
 
-[chars, text] = cPickle.load(open('chars_text_declaration.p', 'r'))
+[chars, text] = cPickle.load(open('chars_text.p', 'r'))
 
 generator = bg.BatchGenerator(text=text, vocabulary=chars, num_unrollings=num_unrollings, batch_size=batch_size)
 
@@ -190,11 +189,11 @@ with tf.Session(graph=graph) as session:
             #print sentence
 
 
-            for _ in range(5):
+            for _ in range(3):
                 feed = sample(random_distribution())
                 sentence = generator.characters(feed)[0]
                 prediction = sample_prediction.eval({sample_input:feed, sample_reset_flag:1})
-                for _ in range(79):
+                for _ in range(150):
                     feed = sample(prediction)
                     sentence += generator.characters(feed)[0]
                     prediction = sample_prediction.eval({sample_input: feed, sample_reset_flag:0})

@@ -5,11 +5,11 @@ import numpy as np
 import cPickle
 import random
 
-num_unrollings = 7
-num_features = 188
+num_unrollings = 50
+num_features = 35
 
-num_lstm_units = 512
-batch_size = 10
+num_lstm_units = 64
+batch_size = 5
 
 graph = tf.Graph()
 
@@ -67,14 +67,11 @@ with graph.as_default():
     #lstm_output =  tf.zeros([batch_size, num_lstm_units])
     #output_z = tf.zeros([batch_size, num_features])
 
-    saved_output = tf.Variable(tf.zeros([batch_size, num_lstm_units]), trainable=False)
-    saved_state = tf.Variable(tf.zeros([batch_size, lstm.state_size]), trainable=False)
+    #saved_output = tf.Variable(tf.zeros([batch_size, num_lstm_units]), trainable=False)
+    #saved_state = tf.Variable(tf.zeros([batch_size, lstm.state_size]), trainable=False)
 
     output_weights = tf.Variable(tf.truncated_normal([num_lstm_units, num_features], stddev=0.1))
     output_biases = tf.Variable(tf.constant(1.0, shape=[num_features]))
-
-    output = saved_output
-    state = saved_state
 
     train_prediction = [tf.placeholder(tf.float32, [batch_size, num_features]) for _ in range(num_unrollings-1)]
 
@@ -82,9 +79,15 @@ with graph.as_default():
 
     with tf.variable_scope('myrnn') as scope:
         for i in range(num_unrollings-1):
+            if i == 0:
+                lstm_output = tf.zeros([batch_size, num_lstm_units])
+                state = tf.zeros([batch_size, lstm.state_size])
             if i > 0:
                 scope.reuse_variables()
+
             lstm_output, state = lstm(tf_inputs[i], state)
+
+            lstm_output = tf.nn.dropout(lstm_output, keep_prob=0.5)
 
             output_z = tf.matmul(lstm_output, output_weights) + output_biases
             loss += tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output_z, tf_inputs[i + 1]))
@@ -103,7 +106,7 @@ with graph.as_default():
     #optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(loss)
 
     global_step = tf.Variable(0)
-    learning_rate = tf.train.exponential_decay(10.0, global_step, 100000, 0.1, staircase=True)
+    learning_rate = tf.train.exponential_decay(10., global_step, 300000, 0.1, staircase=True)
     optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
     gradients, v = zip(*optimizer.compute_gradients(loss))
     gradients, _ = tf.clip_by_global_norm(gradients, 1.25)
@@ -125,11 +128,11 @@ with graph.as_default():
 
 #---------------Data loader and params----------------------------------
 
-[chars, text] = cPickle.load(open('chars_text.p', 'r'))
+[chars, text] = cPickle.load(open('chars_text_declaration.p', 'r'))
 
 generator = bg.BatchGenerator(text=text, vocabulary=chars, num_unrollings=num_unrollings, batch_size=batch_size)
 
-num_epochs = 1000000
+num_epochs = 10000000
 cv_period = 1000
 loss_check_period = 100
 autosave_period = 1000

@@ -9,7 +9,7 @@ import numpy as np
 import random
 import sys
 
-#path = get_file('nietzsche.txt', origin="https://s3.amazonaws.com/text-datasets/nietzsche.txt")
+# path = get_file('nietzsche.txt', origin="https://s3.amazonaws.com/text-datasets/nietzsche.txt")
 
 [_, text] = cPickle.load(open('chars_text.p', 'r'))
 

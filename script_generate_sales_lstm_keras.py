@@ -24,7 +24,7 @@ indices_char = dict((i, c) for i, c in enumerate(chars))
 
 # cut the text in semi-redundant sequences of maxlen characters
 maxlen = 40
-step = 3
+step = 4
 sentences = []
 next_chars = []
 for i in range(0, len(text) - maxlen, step):
